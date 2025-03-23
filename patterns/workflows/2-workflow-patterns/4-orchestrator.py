@@ -3,7 +3,9 @@ from pydantic import BaseModel, Field
 from openai import OpenAI
 import os
 import logging
+from dotenv import load_dotenv
 
+load_dotenv()
 # Set up logging configuration
 logging.basicConfig(
     level=logging.INFO,

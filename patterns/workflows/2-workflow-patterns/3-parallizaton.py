@@ -5,7 +5,9 @@ import os
 import nest_asyncio
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
+from dotenv import load_dotenv
 
+load_dotenv()
 nest_asyncio.apply()
 
 # Set up logging configuration
@@ -18,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 model = "gpt-4o"
+print("✅ Cliente OpenAI inicializado")
 
 # --------------------------------------------------------------
 # Step 1: Define validation models

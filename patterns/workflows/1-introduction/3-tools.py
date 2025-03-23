@@ -1,32 +1,32 @@
 import json
 import os
-
 import requests
+from dotenv import load_dotenv
 from openai import OpenAI
 from pydantic import BaseModel, Field
 
+# 🔐 Cargar variables de entorno (como OPENAI_API_KEY)
+load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-"""
-docs: https://platform.openai.com/docs/guides/function-calling
-"""
+print("✅ Cliente OpenAI inicializado")
 
 # --------------------------------------------------------------
-# Define the tool (function) that we want to call
+# 🧰 Definición de la función externa que usaremos
 # --------------------------------------------------------------
-
 
 def get_weather(latitude, longitude):
-    """This is a publically available API that returns the weather for a given location."""
+    """Consulta clima en una API pública usando latitud y longitud."""
+    print(f"🌍 Llamando a get_weather con lat: {latitude}, lon: {longitude}")
     response = requests.get(
         f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current=temperature_2m,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m"
     )
     data = response.json()
+    print("📦 Respuesta cruda de la API del tiempo:", json.dumps(data, indent=2))
     return data["current"]
 
-
 # --------------------------------------------------------------
-# Step 1: Call model with get_weather tool defined
+# 🧠 Paso 1: El modelo recibe la instrucción y las herramientas
 # --------------------------------------------------------------
 
 tools = [
@@ -40,6 +40,7 @@ tools = [
                 "properties": {
                     "latitude": {"type": "number"},
                     "longitude": {"type": "number"},
+                    "date": {"type": "number"},
                 },
                 "required": ["latitude", "longitude"],
                 "additionalProperties": False,
@@ -56,6 +57,8 @@ messages = [
     {"role": "user", "content": "What's the weather like in Paris today?"},
 ]
 
+print("\n💬 Enviando mensaje inicial al modelo con herramientas...")
+
 completion = client.chat.completions.create(
     model="gpt-4o",
     messages=messages,
@@ -63,35 +66,45 @@ completion = client.chat.completions.create(
 )
 
 # --------------------------------------------------------------
-# Step 2: Model decides to call function(s)
+# 🕵️‍♂️ Paso 2: El modelo decide si usar una herramienta
 # --------------------------------------------------------------
 
-completion.model_dump()
+print("\n🤖 El modelo respondió:")
+print(json.dumps(completion.model_dump(), indent=2))
+
+tool_calls = completion.choices[0].message.tool_calls
+if not tool_calls:
+    print("⚠️ El modelo no pidió usar ninguna herramienta.")
+else:
+    print(f"🛠️ El modelo pidió usar {len(tool_calls)} herramienta(s):")
 
 # --------------------------------------------------------------
-# Step 3: Execute get_weather function
+# ⚙️ Paso 3: Ejecutamos la función solicitada
 # --------------------------------------------------------------
-
 
 def call_function(name, args):
+    print(f"\n📞 Llamando a función '{name}' con argumentos:", args)
     if name == "get_weather":
         return get_weather(**args)
 
-
-for tool_call in completion.choices[0].message.tool_calls:
+for tool_call in tool_calls:
     name = tool_call.function.name
     args = json.loads(tool_call.function.arguments)
+
+    # Añadir mensaje de tool_call a la conversación
     messages.append(completion.choices[0].message)
 
     result = call_function(name, args)
+    print(f"✅ Resultado de {name}:", result)
+
+    # Añadir resultado como mensaje de tool
     messages.append(
         {"role": "tool", "tool_call_id": tool_call.id, "content": json.dumps(result)}
     )
 
 # --------------------------------------------------------------
-# Step 4: Supply result and call model again
+# 🧠 Paso 4: Volvemos a llamar al modelo con el resultado
 # --------------------------------------------------------------
-
 
 class WeatherResponse(BaseModel):
     temperature: float = Field(
@@ -101,6 +114,7 @@ class WeatherResponse(BaseModel):
         description="A natural language response to the user's question."
     )
 
+print("\n🔁 Enviando resultado de la herramienta de vuelta al modelo...")
 
 completion_2 = client.beta.chat.completions.parse(
     model="gpt-4o",
@@ -110,9 +124,11 @@ completion_2 = client.beta.chat.completions.parse(
 )
 
 # --------------------------------------------------------------
-# Step 5: Check model response
+# ✅ Paso 5: Mostramos la respuesta final
 # --------------------------------------------------------------
 
 final_response = completion_2.choices[0].message.parsed
-final_response.temperature
-final_response.response
+
+print("\n🎉 Respuesta estructurada del modelo:")
+print("🌡️  Temperatura:", final_response.temperature)
+print("🗨️  Respuesta natural:", final_response.response)

@@ -1,4 +1,7 @@
 import os
+from dotenv import load_dotenv  # 👈 importante
+
+load_dotenv()  # 👈 carga el archivo .env
 
 from openai import OpenAI
 from pydantic import BaseModel
@@ -41,3 +44,7 @@ event = completion.choices[0].message.parsed
 event.name
 event.date
 event.participants
+
+print("📅 Nombre del evento:", event.name)
+print("📆 Fecha:", event.date)
+print("👥 Participantes:", event.participants)

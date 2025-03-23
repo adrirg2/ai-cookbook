@@ -4,6 +4,10 @@ from openai import OpenAI
 import os
 import logging
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 # Set up logging configuration
 logging.basicConfig(
     level=logging.INFO,
@@ -14,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 model = "gpt-4o"
+print("✅ Cliente OpenAI inicializado")
 
 # --------------------------------------------------------------
 # Step 1: Define the data models for routing and responses
